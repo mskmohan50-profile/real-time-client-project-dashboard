@@ -34,7 +34,7 @@ Production-ready agency project management system with **React, Node.js, Express
 
 ```bash
 git clone <YOUR_REPOSITORY_URL>
-cd agencyflow
+cd project
 docker compose up --build
 ```
 
@@ -50,7 +50,7 @@ Stop:
 docker compose down
 ```
 
-### Node.js + PostgreSQL
+### 
 
 ```bash
 npm install
