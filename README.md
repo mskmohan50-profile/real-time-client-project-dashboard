@@ -30,42 +30,76 @@ Production-ready agency project management system with **React, Node.js, Express
 
 ## Local Setup
 
-### Docker — Preferred
+### 1. Clone the Repository
 
 ```bash
 git clone <YOUR_REPOSITORY_URL>
-cd project
+cd agencyflow
+```
+
+### 2. Run with Docker — Recommended
+
+```bash
 docker compose up --build
 ```
 
-Open:
+Open the application:
 
 ```text
 http://localhost:3000
 ```
 
-Stop:
+WebSocket:
+
+```text
+ws://localhost:3000/ws
+```
+
+Stop Docker:
 
 ```bash
 docker compose down
 ```
 
-### 
+### 3. Run Locally Without Docker
+
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Run database migrations:
+
+```bash
 npm run db:migrate
+```
+
+Seed the database:
+
+```bash
 npm run db:seed
+```
+
+Start the development server:
+
+```bash
 npm run dev
 ```
 
-Production:
+### 4. Production
+
+Build:
 
 ```bash
 npm run build
-npm start
 ```
 
+Start:
+
+```bash
+npm start
+```
 Required environment:
 
 ```env
