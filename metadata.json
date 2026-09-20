@@ -1,0 +1,6 @@
+{
+  "name": "Client Project & Live Activity Dashboard",
+  "description": "Role-based client project management dashboard with real-time WebSocket activity feeds, presence, notifications, and automated overdue task scheduling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
