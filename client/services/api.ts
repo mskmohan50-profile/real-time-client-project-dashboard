@@ -10,6 +10,8 @@ import {
   TaskPriority,
 } from '../types.ts';
 
+const API_BASE = ((import.meta as any).env?.VITE_API_URL ?? '').replace(/\/$/, '');
+
 let currentAccessToken: string | null = null;
 
 export function setAccessToken(token: string | null) {
@@ -18,6 +20,18 @@ export function setAccessToken(token: string | null) {
 
 export function getAccessToken(): string | null {
   return currentAccessToken;
+}
+
+async function parseBody(response: Response): Promise<any> {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(
+      `Server returned non-JSON (${response.status}) from ${response.url}. Check VITE_API_URL.`
+    );
+  }
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -33,13 +47,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const config: RequestInit = {
     ...options,
     headers,
-    credentials: 'include', 
+    credentials: 'include',
   };
 
-  let response = await fetch(endpoint, config);
-  if (response.status === 401 && !endpoint.includes('/api/auth/login') && !endpoint.includes('/api/auth/refresh')) {
+  const url = `${API_BASE}${endpoint}`;
+  let response = await fetch(url, config);
+
+  if (
+    response.status === 401 &&
+    !endpoint.includes('/api/auth/login') &&
+    !endpoint.includes('/api/auth/refresh')
+  ) {
     try {
-      const refreshRes = await fetch('/api/auth/refresh', {
+      const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -50,7 +70,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
         if (refreshData.success && refreshData.data?.accessToken) {
           setAccessToken(refreshData.data.accessToken);
           headers['Authorization'] = `Bearer ${refreshData.data.accessToken}`;
-          response = await fetch(endpoint, { ...config, headers });
+          response = await fetch(url, { ...config, headers });
         }
       }
     } catch (err) {
@@ -58,9 +78,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     }
   }
 
-  const json = await response.json();
+  const json = await parseBody(response);
 
-  if (!response.ok || !json.success) {
+  if (!response.ok || json.success === false) {
     const errorMsg = json.error?.message || `Request failed with status ${response.status}`;
     const error = new Error(errorMsg);
     (error as any).code = json.error?.code;
@@ -128,9 +148,11 @@ export const api = {
     const res = await request<any[]>('/api/auth/personas');
     return (res || []).map(normalizeUser);
   },
+
   async getDashboardStats(): Promise<DashboardStats> {
     return request<DashboardStats>('/api/dashboard/stats');
   },
+
   async getProjects(): Promise<Project[]> {
     return request<Project[]>('/api/projects');
   },
@@ -233,13 +255,16 @@ export const api = {
   },
 
   async runOverdueScan(): Promise<{ flaggedCount: number; taskIds: string[] }> {
-    const res = await request<{ flaggedCount: number; taskIds: string[] }>('/api/tasks/run-overdue-scan', {
+    return request<{ flaggedCount: number; taskIds: string[] }>('/api/tasks/run-overdue-scan', {
       method: 'POST',
     });
-    return res;
   },
 
-  async getActivityFeed(params?: { limit?: number; since?: string; projectId?: string }): Promise<ActivityLog[]> {
+  async getActivityFeed(params?: {
+    limit?: number;
+    since?: string;
+    projectId?: string;
+  }): Promise<ActivityLog[]> {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.since) searchParams.append('since', params.since);
@@ -247,9 +272,14 @@ export const api = {
     const queryStr = searchParams.toString() ? `?${searchParams.toString()}` : '';
     return request<ActivityLog[]>(`/api/activity/feed${queryStr}`);
   },
-  async getNotifications(limit?: number): Promise<{ notifications: NotificationItem[]; unreadCount: number }> {
+
+  async getNotifications(
+    limit?: number
+  ): Promise<{ notifications: NotificationItem[]; unreadCount: number }> {
     const queryStr = limit ? `?limit=${limit}` : '';
-    return request<{ notifications: NotificationItem[]; unreadCount: number }>(`/api/notifications${queryStr}`);
+    return request<{ notifications: NotificationItem[]; unreadCount: number }>(
+      `/api/notifications${queryStr}`
+    );
   },
 
   async markNotificationRead(id: string): Promise<void> {
