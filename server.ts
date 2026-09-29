@@ -2,7 +2,6 @@ import express from 'express';
 import http from 'http';
 import path from 'path';
 import cookieParser from 'cookie-parser';
-import { createServer as createViteServer } from 'vite';
 
 import { config } from './server/config.ts';
 import { initDb } from './server/db/index.ts';
@@ -25,16 +24,19 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 
+  let dbReady = false;
   try {
     await initDb();
     await seedDatabase();
+    dbReady = true;
   } catch (err) {
     console.error('Failed to initialize or seed database:', err);
   }
+
   const server = http.createServer(app);
 
   wsManager.initialize(server);
-  startOverdueScheduler();
+  if (dbReady) startOverdueScheduler();
 
   app.use('/api/auth', authRoutes);
   app.use('/api/projects', projectRoutes);
@@ -45,26 +47,16 @@ async function startServer() {
 
   app.get('/api/health', (_req, res) => {
     res.json({
-      status: 'ok',
-      engine: 'PostgreSQL (PGlite Relational Engine)',
+      status: dbReady ? 'ok' : 'degraded',
+      database: dbReady ? 'connected' : 'unavailable',
       realtime: 'Native WebSocket',
       scheduler: 'node-cron',
       timestamp: new Date().toISOString(),
     });
   });
 
-  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error('Unhandled server error:', err);
-    res.status(err.status || 500).json({
-      success: false,
-      error: {
-        code: err.code || 'INTERNAL_SERVER_ERROR',
-        message: err.message || 'An unexpected server error occurred.',
-      },
-    });
-  });
-
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -78,10 +70,21 @@ async function startServer() {
     });
   }
 
+  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error('Unhandled server error:', err);
+    res.status(err.status || 500).json({
+      success: false,
+      error: {
+        code: err.code || 'INTERNAL_SERVER_ERROR',
+        message: err.message || 'An unexpected server error occurred.',
+      },
+    });
+  });
+
   server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Agency Dashboard Server running at http://localhost:${PORT}`);
-  console.log(`WebSocket server listening at ws://localhost:${PORT}/ws`);
-});
+    console.log(`Agency Dashboard Server running on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
+    console.log(`WebSocket server listening at /ws`);
+  });
 }
 
 startServer();
