@@ -1,4 +1,6 @@
+import 'express-async-errors';
 import express from 'express';
+import cors from 'cors';
 import http from 'http';
 import path from 'path';
 import cookieParser from 'cookie-parser';
@@ -19,6 +21,23 @@ import dashboardRoutes from './server/routes/dashboardRoutes.ts';
 async function startServer() {
   const app = express();
   const PORT = config.port;
+
+  app.set('trust proxy', 1);
+
+  const allowedOrigins = (process.env.CLIENT_URL || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+        return cb(null, false);
+      },
+      credentials: true,
+    })
+  );
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
