@@ -18,10 +18,12 @@ class WebSocketClient {
     this.isExplicitDisconnect = false;
     this.setStatus('connecting');
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
+    const apiBase = ((import.meta as any).env?.VITE_API_URL ?? '').replace(/\/$/, '');
+    const wsBase = apiBase
+      ? apiBase.replace(/^http/, 'ws')
+      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
     const token = getAccessToken();
-    const wsUrl = `${protocol}//${host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+    const wsUrl = `${wsBase}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
     try {
       this.ws = new WebSocket(wsUrl);
